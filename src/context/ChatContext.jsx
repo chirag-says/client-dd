@@ -3,10 +3,10 @@ import { io } from "socket.io-client";
 import api from "../utils/api";
 import { useAuth } from "./AuthContext";
 
-// Get Socket.io base URL (without /api suffix)
+// Get Socket.io base URL (without /api suffix) - remove trailing slash
 const getSocketBaseUrl = () => {
   if (import.meta.env.VITE_API_BASE) {
-    return import.meta.env.VITE_API_BASE;
+    return (import.meta.env.VITE_API_BASE || '').replace(/\/$/, '');
   }
   // Fallback for development
   return `${window.location.protocol}//${window.location.hostname}:9000`;

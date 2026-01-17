@@ -61,8 +61,8 @@ function RecenterMap({ position }) {
     return null;
 }
 
-// API Base URL
-const API_BASE = import.meta.env.VITE_API_BASE;
+// API Base URL - remove trailing slash to avoid double slashes
+const API_BASE = (import.meta.env.VITE_API_BASE || '').replace(/\/$/, '');
 
 // Steps
 const STEPS = [

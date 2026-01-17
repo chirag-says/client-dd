@@ -3,10 +3,16 @@
  * Provides consistent URL handling across the application
  */
 
+// Helper to remove trailing slashes
+const removeTrailingSlash = (url) => {
+    if (!url) return url;
+    return url.endsWith('/') ? url.slice(0, -1) : url;
+};
+
 // Get the API Base URL (without /api suffix)
 export const getApiBase = () => {
     if (import.meta.env.VITE_API_BASE) {
-        return import.meta.env.VITE_API_BASE;
+        return removeTrailingSlash(import.meta.env.VITE_API_BASE);
     }
     // Fallback for development
     return `${window.location.protocol}//${window.location.hostname}:9000`;

@@ -13,15 +13,21 @@ import axios from 'axios';
 // API CLIENT CONFIGURATION
 // ============================================
 
+// Helper to remove trailing slashes
+const removeTrailingSlash = (url) => {
+    if (!url) return url;
+    return url.endsWith('/') ? url.slice(0, -1) : url;
+};
+
 // Get base URL from environment or derive from VITE_API_BASE
 const getApiBaseUrl = () => {
     // First, check if VITE_API_URL is set (includes /api)
     if (import.meta.env.VITE_API_URL) {
-        return import.meta.env.VITE_API_URL;
+        return removeTrailingSlash(import.meta.env.VITE_API_URL);
     }
     // Second, check if VITE_API_BASE is set (without /api)
     if (import.meta.env.VITE_API_BASE) {
-        return `${import.meta.env.VITE_API_BASE}/api`;
+        return `${removeTrailingSlash(import.meta.env.VITE_API_BASE)}/api`;
     }
     // Fallback for development
     return `${window.location.protocol}//${window.location.hostname}:9000/api`;

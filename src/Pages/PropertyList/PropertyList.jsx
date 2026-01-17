@@ -238,7 +238,8 @@ const calculateDistance = (lat1, lon1, lat2, lon2) => {
   return R * c;
 };
 
-const API_BASE = import.meta.env.VITE_API_BASE;
+// API Base URL - remove trailing slash to avoid double slashes
+const API_BASE = (import.meta.env.VITE_API_BASE || '').replace(/\/$/, '');
 
 const normalizePrice = (price, unit) => {
   const amount = Number(price) || 0;
