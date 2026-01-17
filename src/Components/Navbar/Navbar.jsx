@@ -9,8 +9,9 @@ import { HiOutlineHome, HiOutlineDocumentText } from "react-icons/hi";
 import logo from "../../assets/dealdirect_logo.png";
 import AuthModal from "../AuthModal/AuthModal";
 import EmailVerificationModal from "../EmailVerificationModal/EmailVerificationModal";
+import { useAuth } from "../../context/AuthContext";
 
-const API_BASE = import.meta.env.VITE_API_BASE;
+const API_BASE = (import.meta.env.VITE_API_BASE || '').replace(/\/$/, '');
 
 // Omnibox-style relevance scoring (Same as HeroSection)
 const calculateRelevanceScore = (query, text) => {
@@ -35,9 +36,9 @@ const calculateRelevanceScore = (query, text) => {
 };
 
 function Navbar() {
+  const { user, logout, isAuthenticated } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
-  const [user, setUser] = useState(null);
   const [selectedCity, setSelectedCity] = useState("Mumbai");
   const [activeMenu, setActiveMenu] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
@@ -68,27 +69,6 @@ function Navbar() {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
-  const syncUserFromStorage = useCallback(() => {
-    try {
-      const storedUser = localStorage.getItem("user");
-      setUser(storedUser ? JSON.parse(storedUser) : null);
-    } catch (error) {
-      console.error("Failed to parse user from storage", error);
-      setUser(null);
-    }
-  }, []);
-
-  useEffect(() => {
-    syncUserFromStorage();
-    const handleStorage = () => syncUserFromStorage();
-    window.addEventListener("storage", handleStorage);
-    window.addEventListener("auth-change", handleStorage);
-    return () => {
-      window.removeEventListener("storage", handleStorage);
-      window.removeEventListener("auth-change", handleStorage);
-    };
-  }, [syncUserFromStorage]);
-
   // Fetch unread notification count when user logs in
   useEffect(() => {
     const fetchUnread = async () => {
@@ -97,10 +77,9 @@ function Navbar() {
         return;
       }
       try {
-        const token = localStorage.getItem("token");
-        if (!token) return;
+        // Use cookie-based auth (withCredentials is set in axios)
         const res = await axios.get(`${API_BASE}/api/notifications`, {
-          headers: { Authorization: `Bearer ${token}` },
+          withCredentials: true,
         });
         if (res.data.success) {
           const list = res.data.notifications || [];
@@ -275,11 +254,8 @@ function Navbar() {
     );
   };
 
-  const handleLogout = () => {
-    localStorage.removeItem("user");
-    localStorage.removeItem("token");
-    setUser(null);
-    window.dispatchEvent(new Event("auth-change"));
+  const handleLogout = async () => {
+    await logout();
     // Stay on current page instead of redirecting to login
     // Only redirect if on a protected page that requires authentication
     const protectedPaths = ["/profile", "/my-properties", "/saved-properties", "/add-property"];
