@@ -1,17 +1,15 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import axios from "axios";
 import { toast } from "react-toastify";
 import { AiOutlineUser, AiOutlineMenu, AiOutlineClose, AiOutlineSearch, AiOutlineHome, AiOutlineInfoCircle, AiOutlinePhone, AiOutlineFileText, AiOutlinePlusCircle, AiOutlineLogin, AiOutlineLogout, AiOutlineSetting, AiOutlineHeart, AiOutlineBell } from "react-icons/ai";
 import { FaMapMarkerAlt, FaMicrophone } from "react-icons/fa";
-import { BsBuilding, BsHouseDoor, BsPersonCircle } from "react-icons/bs";
-import { HiOutlineHome, HiOutlineDocumentText } from "react-icons/hi";
+import { BsBuilding, BsHouseDoor } from "react-icons/bs";
+import { HiOutlineDocumentText } from "react-icons/hi";
 import logo from "../../assets/dealdirect_logo.png";
-import AuthModal from "../AuthModal/AuthModal";
-import EmailVerificationModal from "../EmailVerificationModal/EmailVerificationModal";
-import { useAuth } from "../../context/AuthContext";
 
-const API_BASE = (import.meta.env.VITE_API_BASE || '').replace(/\/$/, '');
+import EmailVerificationModal from "../EmailVerificationModal/EmailVerificationModal";
+import api from "../../utils/api";
+import { useAuth } from "../../context/AuthContext";
 
 // Omnibox-style relevance scoring (Same as HeroSection)
 const calculateRelevanceScore = (query, text) => {
@@ -36,17 +34,18 @@ const calculateRelevanceScore = (query, text) => {
 };
 
 function Navbar() {
-  const { user, logout, isAuthenticated } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
-  const [selectedCity, setSelectedCity] = useState("Mumbai");
   const [activeMenu, setActiveMenu] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
-  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+
   const [isVerificationModalOpen, setIsVerificationModalOpen] = useState(false);
   const [isUserDropdownOpen, setIsUserDropdownOpen] = useState(false);
   const [unreadNotifications, setUnreadNotifications] = useState(0);
   const userDropdownRef = useRef(null);
+
+  // Use AuthContext for user state
+  const { user, isAuthenticated, logout: authLogout } = useAuth();
 
   // Search Suggestions State
   const [suggestions, setSuggestions] = useState([]);
@@ -72,27 +71,25 @@ function Navbar() {
   // Fetch unread notification count when user logs in
   useEffect(() => {
     const fetchUnread = async () => {
-      if (!user) {
+      if (!isAuthenticated) {
         setUnreadNotifications(0);
         return;
       }
       try {
-        // Use cookie-based auth (withCredentials is set in axios)
-        const res = await axios.get(`${API_BASE}/api/notifications`, {
-          withCredentials: true,
-        });
+        const res = await api.get('/notifications');
         if (res.data.success) {
           const list = res.data.notifications || [];
           const count = list.filter((n) => !n.isRead).length;
           setUnreadNotifications(count);
         }
       } catch (err) {
+        // Silently fail - 401 handled by interceptor
         console.error("Failed to fetch notifications", err);
       }
     };
 
     fetchUnread();
-  }, [user]);
+  }, [isAuthenticated]);
 
   // Search Suggestions Logic
   useEffect(() => {
@@ -105,7 +102,7 @@ function Navbar() {
 
       setIsLoadingSuggestions(true);
       try {
-        const response = await axios.get(`${API_BASE}/api/properties/property-list`);
+        const response = await api.get('/properties/property-list');
         const properties = response.data.data || [];
 
         const searchTerm = searchQuery.toLowerCase().trim();
@@ -255,17 +252,8 @@ function Navbar() {
   };
 
   const handleLogout = async () => {
-    await logout();
-    // Stay on current page instead of redirecting to login
-    // Only redirect if on a protected page that requires authentication
-    const protectedPaths = ["/profile", "/my-properties", "/saved-properties", "/add-property"];
-    const currentPath = window.location.pathname;
-    const isProtectedPage = protectedPaths.some(path => currentPath.startsWith(path));
-
-    if (isProtectedPage) {
-      navigate("/");
-    }
-    // Otherwise stay on the current page
+    await authLogout();
+    // authLogout handles navigation and state clearing
   };
 
   const derivedRole = useMemo(() => {
@@ -291,8 +279,8 @@ function Navbar() {
   }, [agentUploadUrl, isExternalAgentUrl, navigate, showAgentUpload]);
 
   const handleRegisterProperty = async () => {
-    if (!user) {
-      setIsAuthModalOpen(true);
+    if (!isAuthenticated) {
+      navigate('/login', { state: { from: '/add-property' } });
       return;
     }
 
@@ -313,23 +301,15 @@ function Navbar() {
 
     // For owners, enforce: only one property can be listed
     if (userRole === "owner") {
-      const token = localStorage.getItem("token");
-      if (!token) {
-        setIsAuthModalOpen(true);
-        return;
-      }
-
       try {
-        const res = await axios.get(`${API_BASE}/api/properties/my-properties`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+        const res = await api.get('/properties/my-properties');
 
         const count =
           typeof res.data?.count === "number"
             ? res.data.count
             : Array.isArray(res.data?.data)
-            ? res.data.data.length
-            : 0;
+              ? res.data.data.length
+              : 0;
 
         if (count >= 1) {
           toast.info(
@@ -362,10 +342,7 @@ function Navbar() {
 
   return (
     <>
-      <AuthModal
-        isOpen={isAuthModalOpen}
-        onClose={() => setIsAuthModalOpen(false)}
-      />
+
       <EmailVerificationModal
         isOpen={isVerificationModalOpen}
         onClose={() => setIsVerificationModalOpen(false)}
