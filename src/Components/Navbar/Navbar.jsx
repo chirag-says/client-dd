@@ -45,7 +45,7 @@ function Navbar() {
   const userDropdownRef = useRef(null);
 
   // Use AuthContext for user state
-  const { user, isAuthenticated, logout: authLogout } = useAuth();
+  const { user, isAuthenticated, logout: authLogout, canAddProperty, ownerHasProperty, refreshOwnerPropertyStatus } = useAuth();
 
   // Search Suggestions State
   const [suggestions, setSuggestions] = useState([]);
@@ -287,7 +287,7 @@ function Navbar() {
     // Check if user is a buyer (user role) - needs email verification to list property
     const userRole = (user.role || "user").toLowerCase();
 
-    if (userRole === "user") {
+    if (userRole === "user" || userRole === "buyer") {
       // Buyer needs to verify email first
       setIsVerificationModalOpen(true);
       return;
@@ -299,30 +299,15 @@ function Navbar() {
       return;
     }
 
-    // For owners, enforce: only one property can be listed
+    // For owners - canAddProperty from context already checks if they have a property
     if (userRole === "owner") {
-      try {
-        const res = await api.get('/properties/my-properties');
-
-        const count =
-          typeof res.data?.count === "number"
-            ? res.data.count
-            : Array.isArray(res.data?.data)
-              ? res.data.data.length
-              : 0;
-
-        if (count >= 1) {
-          toast.info(
-            "You can list only one property as an owner. Please edit your existing listing from My Properties.",
-          );
-          navigate("/my-properties");
-          return;
-        }
-      } catch (error) {
-        console.error("Error checking existing properties:", error);
-        // If the check fails, fall back to allowing navigation so user isn't blocked unexpectedly
+      if (ownerHasProperty) {
+        toast.info(
+          "You can list only one property as an owner. Please edit your existing listing from My Properties.",
+        );
+        navigate("/my-properties");
+        return;
       }
-
       navigate("/add-property");
     }
   };
@@ -569,7 +554,6 @@ function Navbar() {
                         <div>
                           <h3 className="font-bold text-gray-900 mb-3 text-sm">Company</h3>
                           <ul className="space-y-2">
-                            <li><Link to="/pricing" className="text-gray-700 hover:text-red-600 text-sm">Pricing & Plans</Link></li>
                             <li><Link to="/about" className="text-gray-700 hover:text-red-600 text-sm">About Us</Link></li>
                             <li><Link to="/contact" className="text-gray-700 hover:text-red-600 text-sm">Contact Us</Link></li>
                           </ul>
@@ -592,12 +576,6 @@ function Navbar() {
                 <>
                   <Link to="/properties" className={`${navTextClass} hover:text-red-600 font-medium text-[15px] transition-colors duration-200`}>
                     Properties
-                  </Link>
-                  <Link
-                    to="/pricing"
-                    className={`${navTextClass} hover:text-red-600 font-medium text-[15px] transition-colors duration-200`}
-                  >
-                    Pricing
                   </Link>
                   <Link
                     to="/agreements"
@@ -624,14 +602,16 @@ function Navbar() {
                 </button>
               )}
 
-              {/* Register Property Button - always visible */}
-              <button
-                type="button"
-                onClick={handleRegisterProperty}
-                className="bg-red-600 text-white px-6 py-2.5 rounded-lg text-base font-bold hover:bg-red-700 transition shadow-md"
-              >
-                Register Property
-              </button>
+              {/* Register Property Button - hidden for owners who already have a property */}
+              {!(user?.role === 'owner' && ownerHasProperty) && (
+                <button
+                  type="button"
+                  onClick={handleRegisterProperty}
+                  className="bg-red-600 text-white px-6 py-2.5 rounded-lg text-base font-bold hover:bg-red-700 transition shadow-md"
+                >
+                  Register Property
+                </button>
+              )}
             </div>
 
             {user ? (
@@ -830,25 +810,19 @@ function Navbar() {
                 Properties
               </Link>
 
-              <Link
-                to="/pricing"
-                onClick={toggleMenu}
-                className="flex items-center gap-4 px-4 py-3 text-slate-700 font-medium rounded-xl hover:bg-red-50 hover:text-red-600 transition"
-              >
-                <AiOutlineFileText size={20} />
-                Pricing & Plans
-              </Link>
-
-              <button
-                onClick={() => {
-                  handleRegisterProperty();
-                  toggleMenu();
-                }}
-                className="w-full flex items-center gap-4 px-4 py-3 text-slate-700 font-medium rounded-xl hover:bg-red-50 hover:text-red-600 transition text-left"
-              >
-                <AiOutlinePlusCircle size={20} />
-                Register Property
-              </button>
+              {/* Register Property Button - hidden for owners who already have a property */}
+              {!(user?.role === 'owner' && ownerHasProperty) && (
+                <button
+                  onClick={() => {
+                    handleRegisterProperty();
+                    toggleMenu();
+                  }}
+                  className="w-full flex items-center gap-4 px-4 py-3 text-slate-700 font-medium rounded-xl hover:bg-red-50 hover:text-red-600 transition text-left"
+                >
+                  <AiOutlinePlusCircle size={20} />
+                  Register Property
+                </button>
+              )}
 
               {showAgentUpload && (
                 <button

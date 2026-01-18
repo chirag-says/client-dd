@@ -35,12 +35,38 @@ export const AuthProvider = ({ children }) => {
     const [requiresPasswordChange, setRequiresPasswordChange] = useState(false);
     const [pendingAuthData, setPendingAuthData] = useState(null);
 
+    // Owner property tracking - to hide "Register Property" button after posting
+    const [ownerHasProperty, setOwnerHasProperty] = useState(false);
+
     const navigate = useNavigate();
     const location = useLocation();
 
     // ============================================
     // CHECK AUTH STATUS ON MOUNT (Page Refresh)
     // ============================================
+
+    /**
+     * Check if owner already has a property posted
+     * Used to hide "Register Property" button for owners who already listed
+     */
+    const checkOwnerProperty = useCallback(async (userData) => {
+        if (userData?.role === 'owner') {
+            try {
+                const res = await api.get('/properties/my-properties');
+                const count = typeof res.data?.count === 'number'
+                    ? res.data.count
+                    : Array.isArray(res.data?.data)
+                        ? res.data.data.length
+                        : 0;
+                setOwnerHasProperty(count >= 1);
+            } catch (err) {
+                console.warn('Could not check owner properties:', err.message);
+                setOwnerHasProperty(false);
+            }
+        } else {
+            setOwnerHasProperty(false);
+        }
+    }, []);
 
     /**
      * Fetches current user profile from /api/users/me on every page load.
@@ -60,16 +86,20 @@ export const AuthProvider = ({ children }) => {
                 if (result.user.requiresPasswordChange) {
                     setRequiresPasswordChange(true);
                 }
+                // Check if owner has property
+                await checkOwnerProperty(result.user);
             } else {
                 setUser(null);
+                setOwnerHasProperty(false);
             }
         } catch (err) {
             console.warn('Auth check failed:', err.message);
             setUser(null);
+            setOwnerHasProperty(false);
         } finally {
             setLoading(false);
         }
-    }, []);
+    }, [checkOwnerProperty]);
 
     // Run auth check on mount (every page refresh)
     useEffect(() => {
@@ -158,6 +188,8 @@ export const AuthProvider = ({ children }) => {
 
             if (response.success && response.user) {
                 setUser(response.user);
+                // Check if owner has property after login
+                await checkOwnerProperty(response.user);
                 return { success: true, user: response.user };
             }
 
@@ -415,7 +447,8 @@ export const AuthProvider = ({ children }) => {
 
     const canAccessOwnerFeatures = isAuthenticated && (isOwner || user?.role === 'owner');
 
-    const canAddProperty = isAuthenticated && isOwner && isVerified;
+    // Owner can add property only if verified AND hasn't posted yet
+    const canAddProperty = isAuthenticated && isOwner && isVerified && !ownerHasProperty;
 
     // ============================================
     // CONTEXT VALUE
@@ -437,6 +470,7 @@ export const AuthProvider = ({ children }) => {
         isOwner,
         isBuyer,
         isVerified,
+        ownerHasProperty,
 
         // Role helpers
         hasRole,
@@ -450,6 +484,7 @@ export const AuthProvider = ({ children }) => {
         checkAuth,
         updateUser,
         clearError: () => setError(null),
+        refreshOwnerPropertyStatus: () => checkOwnerProperty(user),
 
         // MFA & Password change handlers
         verifyMfa,

@@ -62,16 +62,6 @@ const WhyUs = () => {
             advanced value. Here is exactly how we plan to earn, without compromising trust between owners and seekers.
           </p>
 
-          <div className="mb-6 flex flex-wrap gap-3">
-            <a
-              href="/pricing"
-              className="inline-flex items-center px-4 py-2 rounded-full bg-slate-900 text-white text-xs md:text-sm font-semibold hover:bg-slate-800 transition"
-            >
-              View detailed Pricing & Plans
-              <span className="ml-1 text-[13px]">→</span>
-            </a>
-          </div>
-
           <div className="grid gap-6 md:grid-cols-2">
             {/* 1. Freemium Listings */}
             <div className="border border-slate-200 rounded-2xl p-5 bg-slate-50/60">

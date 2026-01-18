@@ -19,7 +19,7 @@ import { useAuth } from "../../context/AuthContext";
 
 export default function About() {
   const navigate = useNavigate();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user, ownerHasProperty } = useAuth();
 
   useEffect(() => {
     window.scrollTo({ top: 0, left: 0, behavior: "auto" });
@@ -261,12 +261,15 @@ export default function About() {
             >
               Browse Properties <FaArrowRight className="text-sm" />
             </button>
-            <button
-              onClick={handleListProperty}
-              className="bg-white text-gray-900 px-8 py-4 rounded-full font-bold border border-gray-200 hover:border-red-300 hover:text-red-600 transition-all duration-300 shadow-md hover:shadow-lg"
-            >
-              List Your Property
-            </button>
+            {/* Hide List Property button for owners who already have a property */}
+            {!(user?.role === 'owner' && ownerHasProperty) && (
+              <button
+                onClick={handleListProperty}
+                className="bg-white text-gray-900 px-8 py-4 rounded-full font-bold border border-gray-200 hover:border-red-300 hover:text-red-600 transition-all duration-300 shadow-md hover:shadow-lg"
+              >
+                List Your Property
+              </button>
+            )}
             <button
               onClick={() => navigate('/contact')}
               className="border border-gray-300 text-gray-600 px-8 py-4 rounded-full font-bold hover:bg-white hover:border-gray-400 transition-all duration-300"

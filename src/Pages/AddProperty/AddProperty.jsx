@@ -16,6 +16,8 @@ import api from "../../utils/api";
 import { useAuth } from "../../context/AuthContext";
 import axios from "axios"; // Keep for metadata fetching (public endpoints)
 
+// Get refreshOwnerPropertyStatus from AuthContext
+
 // Fix for default marker icon in react-leaflet
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({
@@ -373,7 +375,7 @@ export default function AddProperty() {
     const navigate = useNavigate();
 
     // Auth state using AuthContext
-    const { user: authUser, isAuthenticated, loading: authLoading } = useAuth();
+    const { user: authUser, isAuthenticated, loading: authLoading, ownerHasProperty, refreshOwnerPropertyStatus } = useAuth();
     const [user, setUser] = useState(null);
     const [showVerificationModal, setShowVerificationModal] = useState(false);
     const [isAuthorized, setIsAuthorized] = useState(false);
@@ -395,37 +397,20 @@ export default function AddProperty() {
             // Agents can list unlimited properties
             setIsAuthorized(true);
         } else if (role === "owner") {
-            // Owners can only list ONE property - check if they already have one
-            const checkOwnerLimit = async () => {
-                try {
-                    const res = await api.get('/properties/my-properties');
-                    const count =
-                        typeof res.data?.count === "number"
-                            ? res.data.count
-                            : Array.isArray(res.data?.data)
-                                ? res.data.data.length
-                                : 0;
-
-                    if (count >= 1) {
-                        toast.info(
-                            "You can list only one property as an owner. Please edit your existing listing.",
-                        );
-                        navigate("/my-properties");
-                        return;
-                    }
-                    setIsAuthorized(true);
-                } catch (error) {
-                    console.error("Error checking existing properties:", error);
-                    // If check fails, allow access to not block the user
-                    setIsAuthorized(true);
-                }
-            };
-            checkOwnerLimit();
+            // Owners can only list ONE property - use context's ownerHasProperty
+            if (ownerHasProperty) {
+                toast.info(
+                    "You can list only one property as an owner. Please edit your existing listing.",
+                );
+                navigate("/my-properties");
+                return;
+            }
+            setIsAuthorized(true);
         } else {
             // Buyer/User needs to verify email to become owner
             setShowVerificationModal(true);
         }
-    }, [authLoading, isAuthenticated, authUser, navigate]);
+    }, [authLoading, isAuthenticated, authUser, ownerHasProperty, navigate]);
 
     const handleVerificationSuccess = () => {
         // User state will be automatically updated via AuthContext's checkAuth
@@ -772,6 +757,11 @@ export default function AddProperty() {
             await api.post('/properties/add', submitData, {
                 headers: { "Content-Type": "multipart/form-data" }
             });
+
+            // Refresh owner property status so the Register Property button hides
+            if (refreshOwnerPropertyStatus) {
+                await refreshOwnerPropertyStatus();
+            }
 
             toast.success("Property published successfully!");
             navigate("/");
@@ -1930,19 +1920,6 @@ export default function AddProperty() {
                             </button>
                         </div>
                     </div>
-                </div>
-
-                <div className="max-w-3xl mx-auto text-xs sm:text-sm text-gray-500 flex flex-wrap items-center justify-between gap-2">
-                    <p>
-                        Want higher visibility or more active listings over time? Explore our owner Pricing & Plans.
-                    </p>
-                    <a
-                        href="/pricing"
-                        className="inline-flex items-center px-3 py-1.5 rounded-full border border-blue-200 text-blue-700 font-semibold hover:bg-blue-50 text-[11px] sm:text-xs"
-                    >
-                        View Pricing & Plans
-                        <span className="ml-1 text-[13px]">→</span>
-                    </a>
                 </div>
             </div>
         );
