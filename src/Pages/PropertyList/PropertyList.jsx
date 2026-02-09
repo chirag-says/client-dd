@@ -20,6 +20,8 @@ import {
   FaBuilding,
   FaUsers,
   FaBell,
+  FaLightbulb,
+  FaSearchPlus,
 } from "react-icons/fa";
 import { MapContainer, TileLayer, Marker, Popup, useMap, useMapEvents, Circle } from "react-leaflet";
 import L from "leaflet";
@@ -374,13 +376,13 @@ const PropertyPage = () => {
 
     const isResidential =
       categoryLower.includes("residen") ||
-      /apartment|flat|villa|house|studio|row house|farm house|penthouse/i.test(
+      /apartment|flat|villa|house|studio|row house|farm house|penthouse|independent|builder\s*floor/i.test(
         propertyTypeLower
       );
 
     const isCommercial =
       categoryLower.includes("commercial") ||
-      /office|shop|showroom|restaurant|cafe|warehouse|industrial|co-working|coworking|commercial/i.test(
+      /office|shop|showroom|restaurant|cafe|warehouse|industrial|co-working|coworking|commercial|godown|retail/i.test(
         propertyTypeLower
       );
 
@@ -789,6 +791,128 @@ const PropertyPage = () => {
     return matchesSearch && matchType && matchCity && matchPrice && matchListingType;
   });
 
+  // Calculate related properties when filtered results are less than 6
+  const relatedProperties = useMemo(() => {
+    // Only calculate related properties if there are filters applied and results < 6
+    const hasFilters = filters.search || filters.city || filters.propertyType || filters.priceRange || filters.availableFor;
+    if (!hasFilters || filteredProperties.length >= 6) return [];
+
+    const filteredIds = new Set(filteredProperties.map(p => p._id));
+    const query = (filters.search || "").toLowerCase();
+    
+    // Get the category/type context from current filters or filtered results
+    const currentCategory = filters.propertyType 
+      ? propertyTypes.find(pt => String(pt._id) === String(filters.propertyType))?.name?.toLowerCase() || ""
+      : "";
+    
+    // Determine if looking for residential or commercial
+    const isLookingForResidential = currentCategory.includes("residen") || 
+      /apartment|flat|villa|house|bhk|penthouse|independent|builder\s*floor|row\s*house|farm\s*house/i.test(query);
+    const isLookingForCommercial = currentCategory.includes("commercial") ||
+      /office|shop|showroom|warehouse|industrial|godown|retail/i.test(query);
+    
+    // Score and find related properties
+    const related = properties
+      .filter(p => !filteredIds.has(p._id)) // Exclude already shown properties
+      .map(p => {
+        let score = 0;
+        const { isResidential, isCommercial, propertyTypeName } = getTypeFlags(p);
+        
+        // Match by property category (highest priority)
+        if (isLookingForResidential && isResidential) score += 30;
+        if (isLookingForCommercial && isCommercial) score += 30;
+        
+        // If no specific category detected, give base score to all properties
+        if (!isLookingForResidential && !isLookingForCommercial) {
+          score += 10; // Base relevance for any property
+        }
+        
+        // Match by listing type (Rent/Sell)
+        if (filters.availableFor && p.listingType?.toLowerCase() === filters.availableFor.toLowerCase()) {
+          score += 25;
+        } else if (!filters.availableFor) {
+          score += 10; // No listing type filter, give base score
+        }
+        
+        // Match by city (if different city but same type, still relevant)
+        if (filters.city) {
+          const pCity = (p.address?.city || p.city || "").toLowerCase();
+          if (pCity === filters.city.toLowerCase()) {
+            score += 20;
+          } else if (pCity) {
+            score += 5;
+          }
+        } else {
+          score += 5; // No city filter, give small base score
+        }
+        
+        // Match by similar property type name
+        if (query) {
+          const pTypeLower = propertyTypeName.toLowerCase();
+          const pTitle = (p.title || "").toLowerCase();
+          const pBhk = (p.bhk || "").toLowerCase();
+          
+          // Check if property type or title contains any word from the search query
+          const queryWords = query.split(/\s+/).filter(w => w.length > 2);
+          const matchesAnyWord = queryWords.some(word => 
+            pTypeLower.includes(word) || pTitle.includes(word)
+          );
+          
+          if (matchesAnyWord) {
+            score += 15;
+          }
+          
+          if (pTypeLower.includes(query) || pTitle.includes(query) || pBhk.includes(query)) {
+            score += 15;
+          }
+          
+          // BHK matching - if searching for "2 BHK", "3 BHK" etc. show similar BHK
+          const bhkMatch = query.match(/(\d+)\s*bhk/i);
+          if (bhkMatch) {
+            const searchBhk = parseInt(bhkMatch[1]);
+            const propBhk = parseInt(p.bedrooms || p.bhk || "0");
+            if (propBhk === searchBhk) score += 20;
+            else if (Math.abs(propBhk - searchBhk) === 1) score += 10; // Adjacent BHK
+          }
+        }
+        
+        // Match by price range proximity
+        if (filters.priceRange) {
+          const priceInRupees = normalizePrice(p.price, p.priceUnit);
+          const isLow = priceInRupees < 5000000;
+          const isMid = priceInRupees >= 5000000 && priceInRupees <= 15000000;
+          const isHigh = priceInRupees > 15000000;
+          
+          if (filters.priceRange === "low" && isLow) score += 15;
+          else if (filters.priceRange === "mid" && isMid) score += 15;
+          else if (filters.priceRange === "high" && isHigh) score += 15;
+          // Adjacent price ranges get partial score
+          else if ((filters.priceRange === "low" && isMid) || (filters.priceRange === "mid" && (isLow || isHigh)) || (filters.priceRange === "high" && isMid)) {
+            score += 8;
+          }
+        }
+        
+        return { ...p, relevanceScore: score };
+      })
+      .filter(p => p.relevanceScore >= 15) // Include if somewhat relevant
+      .sort((a, b) => b.relevanceScore - a.relevanceScore)
+      .slice(0, 6); // Always show 6 related properties
+
+    // Debug log
+    console.log('Related properties calculation:', {
+      hasFilters,
+      filteredCount: filteredProperties.length,
+      totalProperties: properties.length,
+      query,
+      isLookingForResidential,
+      isLookingForCommercial,
+      relatedCount: related.length,
+      topScores: related.slice(0, 3).map(p => ({ title: p.title, score: p.relevanceScore }))
+    });
+
+    return related;
+  }, [filteredProperties, properties, filters, propertyTypes]);
+
   // Get properties with valid coordinates for map
   const propertiesWithCoords = useMemo(() => {
     const withCoords = filteredProperties.filter(p => {
@@ -1152,7 +1276,9 @@ const PropertyPage = () => {
                 <p className="text-slate-500 text-sm mt-1">
                   {loading
                     ? "Searching the best options for you..."
-                    : `Showing ${filteredProperties.length} of ${properties.length} properties`}
+                    : filteredProperties.length > 0 && relatedProperties.length > 0
+                      ? `Showing ${filteredProperties.length} matching + ${relatedProperties.length} related properties`
+                      : `Showing ${filteredProperties.length} of ${properties.length} properties`}
                 </p>
               </div>
               {!loading && filteredProperties.length > 0 && (
@@ -1256,7 +1382,7 @@ const PropertyPage = () => {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
             {[1, 2, 3, 4, 5, 6].map((n) => <SkeletonCard key={n} />)}
           </div>
-        ) : filteredProperties.length === 0 ? (
+        ) : filteredProperties.length === 0 && relatedProperties.length === 0 ? (
           <div className="text-center py-24 bg-white rounded-3xl border border-dashed border-slate-300">
             <div className="bg-slate-50 w-24 h-24 rounded-full flex items-center justify-center mx-auto mb-6">
               <FaMapMarkerAlt className="text-4xl text-slate-400" />
@@ -1279,6 +1405,23 @@ const PropertyPage = () => {
                 Back to Home
               </button>
             </div>
+          </div>
+        ) : filteredProperties.length === 0 && relatedProperties.length > 0 ? (
+          /* No exact matches but has related properties - show minimal message, related properties rendered below */
+          <div className="text-center py-8 bg-white rounded-2xl border border-amber-200 mb-8">
+            <div className="bg-amber-50 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+              <FaSearchPlus className="text-2xl text-amber-600" />
+            </div>
+            <h3 className="text-xl font-bold text-slate-700 mb-2">No exact matches found</h3>
+            <p className="text-slate-500 max-w-md mx-auto text-sm">
+              We couldn't find properties matching "{filters.search || filters.city || 'your criteria'}" exactly, but check out these related options below!
+            </p>
+            <button
+              onClick={() => setFilters(initialFilters)}
+              className="mt-4 text-red-600 text-sm font-semibold hover:underline"
+            >
+              Clear filters to see all properties
+            </button>
           </div>
         ) : viewMode === "map" ? (
           /* Map View */
@@ -1669,6 +1812,187 @@ const PropertyPage = () => {
                 </div>
               </div>
             ))}
+          </div>
+        )}
+
+        {/* Related Properties Section - Show when filtered results are less than 6 */}
+        {viewMode === "list" && !loading && relatedProperties.length > 0 && (
+          <div className="mt-12">
+            {/* Section Header */}
+            <div className="mb-6 p-4 bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-2xl">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center">
+                  <FaLightbulb className="text-lg text-amber-600" />
+                </div>
+                <div>
+                  <h2 className="text-lg font-bold text-slate-800">
+                    {filteredProperties.length === 0 
+                      ? "No exact matches found. Here are some related properties"
+                      : "Looking for more? Here are a few related properties that might interest you"}
+                  </h2>
+                  <p className="text-sm text-slate-600 mt-0.5">
+                    {filteredProperties.length === 0 
+                      ? "We couldn't find properties matching your exact criteria, but these might be worth exploring."
+                      : `Based on your search for ${filters.search || filters.city || 'properties'}${filters.availableFor ? ` for ${filters.availableFor}` : ''}`}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Related Properties Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+              {relatedProperties.map((p) => (
+                <div
+                  key={p._id}
+                  onClick={() => viewDetails(p)}
+                  className="group bg-white rounded-2xl border border-slate-100 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 overflow-hidden cursor-pointer relative"
+                >
+                  {/* Related Badge */}
+                  <div className="absolute top-3 right-12 z-10">
+                    <span className="bg-amber-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-sm">
+                      Related
+                    </span>
+                  </div>
+                  
+                  <div className="relative h-64 overflow-hidden">
+                    <div className="absolute top-3 left-3 z-10">
+                      <span className="bg-white/95 backdrop-blur-sm text-slate-800 text-xs font-bold px-3 py-1 rounded-md shadow-sm">
+                        {formatCategoryDisplay(p.category?.name || p.categoryName || p.category || p.propertyCategory || "For Sale")}
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={(e) => handleInterest(e, p._id)}
+                      disabled={interestLoadingIds.has(p._id)}
+                      className={`absolute top-3 right-3 z-10 p-2 backdrop-blur-sm rounded-full transition-colors ${interestedIds.has(p._id)
+                        ? "bg-red-600 text-white"
+                        : "bg-black/20 text-white hover:bg-red-500"}${interestLoadingIds.has(p._id) ? " opacity-70 cursor-not-allowed" : ""}`}
+                      aria-label={interestedIds.has(p._id) ? "Interest registered" : "I'm interested"}
+                    >
+                      {interestedIds.has(p._id) ? <FaHeart /> : <FaRegHeart />}
+                    </button>
+                    <img
+                      src={resolveImageSrc(p.images?.[0]) || FALLBACK_IMG}
+                      alt={p.title}
+                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
+                      onError={(e) => { e.target.onerror = null; e.target.src = FALLBACK_IMG; }}
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-60 group-hover:opacity-40 transition-opacity" />
+                    <div className="absolute bottom-4 left-4 text-white">
+                      <p className="text-2xl font-bold drop-shadow-md">
+                        ₹{p.price?.toLocaleString()} <span className="text-sm font-normal opacity-90">{p.priceUnit}</span>
+                      </p>
+                    </div>
+                  </div>
+                  <div className="p-5">
+                    <div className="flex items-start justify-between gap-2 mb-2">
+                      <h3 className="text-lg font-bold text-slate-800 line-clamp-1 group-hover:text-red-600 transition-colors">
+                        {p.title}
+                      </h3>
+                    </div>
+                    <p className="text-slate-500 text-sm flex items-center gap-1 mb-4 line-clamp-1">
+                      <FaMapMarkerAlt className="text-red-500 flex-shrink-0" />
+                      {p.address?.city}, {p.address?.state}
+                    </p>
+                    <div className="flex items-center gap-4 border-t border-slate-100 pt-4 text-slate-600 text-sm font-medium">
+                      {(() => {
+                        const { isResidential, isCommercial, propertyTypeName } = getTypeFlags(p);
+                        const builtUp = p.area?.builtUpSqft || p.size;
+                        const sizeUnit = p.sizeUnit || "sqft";
+
+                        if (isResidential) {
+                          const beds = p.bedrooms || p.bhk;
+                          const baths = p.bathrooms;
+
+                          return (
+                            <>
+                              {beds && (
+                                <div className="flex items-center gap-1.5">
+                                  <FaBed className="text-slate-400" />
+                                  <span>{beds} Beds</span>
+                                </div>
+                              )}
+                              {baths && (
+                                <div className="flex items-center gap-1.5">
+                                  <FaBath className="text-slate-400" />
+                                  <span>{baths} Baths</span>
+                                </div>
+                              )}
+                              {builtUp && (
+                                <div className="flex items-center gap-1.5">
+                                  <FaRulerCombined className="text-slate-400" />
+                                  <span>
+                                    {builtUp} {sizeUnit}
+                                  </span>
+                                </div>
+                              )}
+                            </>
+                          );
+                        }
+
+                        if (isCommercial) {
+                          const seating = p.seatingCapacity || p.workstations;
+
+                          return (
+                            <>
+                              <div className="flex items-center gap-1.5">
+                                <FaBuilding className="text-slate-400" />
+                                <span className="truncate max-w-[120px]">
+                                  {propertyTypeName || "Commercial"}
+                                </span>
+                              </div>
+                              {seating && (
+                                <div className="flex items-center gap-1.5">
+                                  <FaUsers className="text-slate-400" />
+                                  <span>{seating} Seats</span>
+                                </div>
+                              )}
+                              {builtUp && (
+                                <div className="flex items-center gap-1.5">
+                                  <FaRulerCombined className="text-slate-400" />
+                                  <span>
+                                    {builtUp} {sizeUnit}
+                                  </span>
+                                </div>
+                              )}
+                            </>
+                          );
+                        }
+
+                        // Fallback: just show area if available
+                        return (
+                          <>
+                            {builtUp && (
+                              <div className="flex items-center gap-1.5">
+                                <FaRulerCombined className="text-slate-400" />
+                                <span>
+                                  {builtUp} {sizeUnit}
+                                </span>
+                              </div>
+                            )}
+                          </>
+                        );
+                      })()}
+                    </div>
+                    <div className="mt-3 flex items-center justify-between gap-3">
+                      <button
+                        type="button"
+                        onClick={(e) => toggleCompare(e, p)}
+                        className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors whitespace-nowrap ${compareIds.includes(p._id)
+                          ? "bg-slate-900 text-white border-slate-900"
+                          : "bg-white text-slate-700 border-slate-300 hover:border-slate-500"}
+                        `}
+                      >
+                        {compareIds.includes(p._id) ? "Added to Compare" : "Compare"}
+                      </button>
+                      <span className="text-[11px] text-slate-400 hidden sm:inline">
+                        Click card for full details
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         )}
       </main>

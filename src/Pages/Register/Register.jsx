@@ -72,6 +72,26 @@ export default function Register() {
     setFormData((f) => ({ ...f, [name]: newValue }));
   };
 
+  // Password validation helper
+  const validatePassword = (password) => {
+    if (!password || password.length < 8) {
+      return { valid: false, message: 'Password must be at least 8 characters long' };
+    }
+    if (!/[a-z]/.test(password)) {
+      return { valid: false, message: 'Password must contain at least one lowercase letter' };
+    }
+    if (!/[A-Z]/.test(password)) {
+      return { valid: false, message: 'Password must contain at least one uppercase letter' };
+    }
+    if (!/\d/.test(password)) {
+      return { valid: false, message: 'Password must contain at least one number' };
+    }
+    if (!/[@$!%*?&#^()\-_=+]/.test(password)) {
+      return { valid: false, message: 'Password must contain at least one special character (@$!%*?&#^()-_=+)' };
+    }
+    return { valid: true };
+  };
+
   // Handle registration - different flow for buyer vs owner
   const handleRegister = async (e) => {
     e.preventDefault();
@@ -84,6 +104,13 @@ export default function Register() {
 
     if (!/^[6-9]\d{9}$/.test(formData.phone.trim())) {
       toast.error("Please enter a valid 10-digit phone number");
+      return;
+    }
+
+    // Client-side password validation
+    const passwordCheck = validatePassword(formData.password);
+    if (!passwordCheck.valid) {
+      toast.error(passwordCheck.message);
       return;
     }
 
@@ -185,7 +212,8 @@ export default function Register() {
         return;
       }
 
-      toast.error(errorData?.message || "Registration failed. Please try again.");
+      toast.error(errorData?.message || err.message || "Registration failed. Please check your details and try again.");
+      console.error("Registration error:", err.response?.status, errorData);
     } finally {
       setIsLoading(false);
     }
