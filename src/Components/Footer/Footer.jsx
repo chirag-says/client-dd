@@ -53,7 +53,7 @@ const Footer = () => {
       { name: "Help Center", path: "/contact" },
       { name: "Contact Us", path: "/contact" },
       { name: "Privacy Policy", path: "/privacy" },
-      { name: "Terms of Service", path: "/terms" }
+      { name: "Terms of Use", path: "/terms" }
     ]
   };
 
@@ -183,7 +183,7 @@ const Footer = () => {
 
           <div className="flex flex-wrap gap-6 text-sm">
             <Link to="/privacy" className="hover:text-red-500 transition-colors">Privacy Policy</Link>
-            <Link to="/terms" className="hover:text-red-500 transition-colors">Terms of Service</Link>
+            <Link to="/terms" className="hover:text-red-500 transition-colors">Terms of Use</Link>
             <Link to="/contact" className="hover:text-red-500 transition-colors">Contact</Link>
           </div>
         </div>

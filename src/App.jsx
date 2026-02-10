@@ -19,6 +19,7 @@ import Notifications from "./Pages/Notifications/Notifications.jsx";
 import PrivacyPolicy from "./Pages/Privacy/Privacy.jsx";
 import TermsAndConditions from "./Pages/Terms&Conditions/Terms&Conditions.jsx";
 import WhyUs from "./Pages/WhyUs/WhyUs.jsx";
+
 import ScrollToTop from "./Components/ScrollToTop/ScrollToTop.jsx";
 import { ChatProvider } from "./context/ChatContext.jsx";
 import { AuthProvider, ProtectedRoute } from "./context/AuthContext.jsx";
@@ -45,6 +46,7 @@ function App() {
               <Route path="/privacy" element={<PrivacyPolicy />} />
               <Route path="/terms" element={<TermsAndConditions />} />
               <Route path="/why-us" element={<WhyUs />} />
+
 
               {/* Protected Routes - Any authenticated user */}
               <Route path="/profile" element={
