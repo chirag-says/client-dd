@@ -699,7 +699,7 @@ export default function Register() {
                     </div>
                     <div className="ml-3 text-sm">
                       <label htmlFor="agree" className="text-slate-600 cursor-pointer">
-                        I agree to the <a href="#" className="text-blue-900 font-medium hover:underline">Terms of Service</a> and <a href="#" className="text-blue-900 font-medium hover:underline">Privacy Policy</a>
+                        I agree to the <Link to="/terms" target="_blank" className="text-blue-900 font-medium hover:underline">Terms of Use</Link> and <Link to="/privacy" target="_blank" className="text-blue-900 font-medium hover:underline">Privacy Policy</Link>
                       </label>
                     </div>
                   </div>
