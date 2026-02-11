@@ -97,9 +97,13 @@ const Footer = () => {
                 <AiOutlinePhone className="text-red-500 text-lg flex-shrink-0" />
                 <span>+91 1800-123-4567</span>
               </a>
-              <div className="flex items-center gap-3">
-                <AiOutlineEnvironment className="text-red-500 text-lg flex-shrink-0" />
-                <span>Mumbai, India</span>
+              <div className="flex items-start gap-3">
+                <AiOutlineEnvironment className="text-red-500 text-lg flex-shrink-0 mt-1" />
+                <span>
+                  Agrawal Business Network LLP<br />
+                  129, Growmore tower sector 2, plot no 5,<br />
+                  kharghar, Navi Mumbai 410210
+                </span>
               </div>
             </div>
           </div>
@@ -164,7 +168,7 @@ const Footer = () => {
 
         {/* Bottom Section */}
         <div className="mt-8 flex flex-col md:flex-row justify-between items-center gap-6 text-gray-500 text-sm">
-          <p>&copy; {currentYear} DealDirect. All rights reserved.</p>
+          <p>&copy; {currentYear} Agrawal Business Network LLP. All rights reserved.</p>
 
           <div className="flex gap-4">
             {socialLinks.map((social, idx) => (

@@ -192,7 +192,7 @@ const TermsAndConditions = () => {
                     </Accordion>
 
                     <Accordion title="12. Notices" icon={Bell}>
-                        <p>All legal notices to DEALDIRECT shall be sent to: <strong>Agrawal Business Network LLP, 129 Growmore Towers, Sec 2, Kharghar, Navi Mumbai 410210</strong>, Attn: Legal Department.</p>
+                        <p>All legal notices to DEALDIRECT shall be sent to: <strong>Agrawal Business Network LLP, 129, Growmore tower sector 2, plot no 5, kharghar, Navi Mumbai 410210</strong>, Attn: Legal Department.</p>
                         <p>Notices to Users are effective when delivered personally, by courier, certified mail, email, SMS, WhatsApp, in-app notifications, or posted on the Platform.</p>
                     </Accordion>
 
@@ -212,7 +212,7 @@ const TermsAndConditions = () => {
                             <div className="space-y-1 text-sm">
                                 <p className="font-bold text-lg text-white">Arti Jadhav</p>
                                 <p className="text-slate-400">Grievance Officer, Agrawal Business Network LLP</p>
-                                <p className="text-slate-400">129 Growmore Towers, Sec 2, Kharghar, Navi Mumbai 410210</p>
+                                <p className="text-slate-400">129, Growmore tower sector 2, plot no 5, kharghar, Navi Mumbai 410210</p>
                                 <p className="text-slate-400">Phone: <strong className="text-blue-400">+91 92-8963 8963</strong></p>
                                 <p className="text-slate-400">Email: <strong className="text-blue-400">grievance@dealdirect.in</strong></p>
                                 <p className="text-slate-400">Available: Mon – Fri (10:00 AM – 06:00 PM)</p>

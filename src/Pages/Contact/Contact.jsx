@@ -134,9 +134,9 @@ export default function Contact() {
                   <div>
                     <h4 className="font-semibold text-white">Corporate Office</h4>
                     <p className="text-white/80 text-sm mt-1">
-                      Deal Direct<br />
-                      123 Innovation Park, Tech Hub,<br />
-                      Mumbai, Maharashtra 400001
+                      Agrawal Business Network LLP<br />
+                      129, Growmore tower sector 2, plot no 5,<br />
+                      kharghar, Navi Mumbai 410210
                     </p>
                   </div>
                 </div>

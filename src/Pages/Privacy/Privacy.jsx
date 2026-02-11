@@ -210,7 +210,7 @@ const PrivacyPolicy = () => {
                                     <Server className="text-emerald-400 mt-1" />
                                     <div>
                                         <p className="font-semibold">Agrawal Business Network LLP</p>
-                                        <p className="text-slate-400 text-sm">129 Growmore Towers, Sec 2, Kharghar,<br />Navi Mumbai 410210</p>
+                                        <p className="text-slate-400 text-sm">129, Growmore tower sector 2, plot no 5,<br />kharghar, Navi Mumbai 410210</p>
                                     </div>
                                 </div>
                                 <p className="text-slate-400 text-sm">Phone: +91 92-8963 8963 | Mon – Fri (10:00 AM – 06:00 PM)</p>
